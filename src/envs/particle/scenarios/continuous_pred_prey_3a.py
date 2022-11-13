@@ -1,14 +1,31 @@
 import numpy as np
 from envs.particle.core import World, Agent, Landmark
 from envs.particle.scenario import BaseScenario
-
+import math
+import random
 
 class Scenario(BaseScenario):
     def make_world(self, args=None):
         world = World()
+        # users=[]
+        # for i in range(50):
+        #     a=np.random.randint(-10, 10)
+        #     b=np.random.randint(-10, 10)
+        #     users.append([a,b])
+        # for i in range(5):
+        #     a=np.random.randint(-50, 50)
+        #     b=np.random.randint(-50, 50)
+        #     users.append([a,b])
+        # for i in range(10):
+        #     a=np.random.randint(-200, -100)
+        #     b=np.random.randint(-200, -100)
+        #     users.append([a,b])
+        # world.user=users
+        # np.savetxt('users_location.txt', users)
+        world.user = np.loadtxt('users_location.txt')
         # set any world properties first
         world.dim_c = 2
-        num_good_agents = 1
+        num_good_agents = 0
         num_adversaries = 3
         num_agents = num_adversaries + num_good_agents # deactivate "good" agents
         num_landmarks = 2
@@ -31,7 +48,7 @@ class Scenario(BaseScenario):
             landmark.name = 'landmark %d' % i
             landmark.collide = True
             landmark.movable = False
-            landmark.size = 0.2
+            landmark.size = 0.001
             landmark.boundary = False
         # make initial conditions
         self.reset_world(world)
@@ -101,8 +118,17 @@ class Scenario(BaseScenario):
         for i, landmark in enumerate(world.landmarks):
             landmark.color = np.array([0.25, 0.25, 0.25])
         # set random initial states
+        # pos=np.array([[-0.6,-0.6],
+        # [-0.6,0.6],
+        # [0.6,-0.6],
+        # [0.6,0.6]],dtype="float64"
+        # )
+        # count=0
         for agent in world.agents:
-            agent.state.p_pos = np.random.uniform(-1, +1, world.dim_p)
+            # agent.state.p_pos = np.array([0.4,0.4],dtype="float64")
+            agent.state.p_pos = np.random.uniform(0.5, 0.5001, world.dim_p)
+            # agent.state.p_pos = pos[count]
+            # count=count+1  
             agent.state.p_vel = np.zeros(world.dim_p)
             agent.state.c = np.zeros(world.dim_c)
         for i, landmark in enumerate(world.landmarks):
@@ -137,8 +163,39 @@ class Scenario(BaseScenario):
 
     def reward(self, agent, world):
         # Agents are rewarded based on minimum agent distance to each landmark
-        main_reward = self.adversary_reward(agent, world) if agent.adversary else self.agent_reward(agent, world)
-        return main_reward
+        s=agent.state.p_pos*1000
+        QoS_current = 0
+        SINR = 0
+        S = 0
+        reward=0
+        user=world.user
+        Nu = 10 ** (-11)
+        for i in range(len(user)):
+            l = ((s[0] - user[i][0]) ** 2 + (s[1] - user[i][1]) ** 2) ** 0.5
+            if(l<1000):
+                d = (20 ** 2 + l ** 2) ** 0.5
+                if l == 0:
+                    angle = 90
+                else:
+                    angle = math.atan(20 / l) * 180 / math.pi
+                P_LOS = 1 / (1 + 11.95 * math.exp(-0.136 * (angle - 11.95)))
+                P_NLOS = 1 - P_LOS
+                S_LOS = 180 * 10 ** (-4.11 - 2.09 * math.log10(d))
+                S_NLOS = 180 * 10 ** (-3.3 - 3.75 * math.log10(d))
+                SINR_LOS = S_LOS / Nu
+                SINR_NLOS = S_NLOS / Nu
+                SINR += P_LOS * 10 * math.log10(SINR_LOS) + P_NLOS * 10 * math.log10(SINR_NLOS)
+                S += P_LOS * 10 * math.log10(S_LOS) + P_NLOS * 10 * math.log10(S_NLOS)
+                QoS_current += P_LOS * math.log2(1 + SINR_LOS) + P_NLOS * math.log2(1 + SINR_NLOS)
+            # print('QoS_current',P_LOS * math.log2(1 + SINR_LOS) + P_NLOS * math.log2(1 + SINR_NLOS))
+        
+        # l = ((s[0] - user[i][0]) ** 2 + (s[1] - user[i][1]) ** 2) ** 0.5
+        # print('l',l)
+        # if(l<500):
+        #     reward=10
+        # if(l<100):
+        #     reward=50
+        return QoS_current
 
     def agent_reward(self, agent, world):
         # Agents are negatively rewarded if caught by adversaries
@@ -207,7 +264,8 @@ class Scenario(BaseScenario):
                 other_pos.append(np.array([0., 0.]))
                 if not other.adversary:
                     other_vel.append(np.array([0., 0.]))
-        return np.concatenate([agent.state.p_vel] + [agent.state.p_pos] + entity_pos + other_pos + other_vel)
+        return np.concatenate([agent.state.p_pos]+other_pos)
+        # return np.concatenate([agent.state.p_vel] + [agent.state.p_pos] + entity_pos + other_pos + other_vel)
 
     def full_observation(self, agent, world):
         # get positions of all entities in this agent's reference frame
@@ -225,4 +283,4 @@ class Scenario(BaseScenario):
             other_pos.append(other.state.p_pos - agent.state.p_pos)
             if not other.adversary:
                 other_vel.append(other.state.p_vel)
-        return np.concatenate([agent.state.p_vel] + [agent.state.p_pos] + entity_pos + other_pos + other_vel)
+        return np.concatenate([agent.state.p_pos]+ other_pos)
