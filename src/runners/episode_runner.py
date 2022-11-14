@@ -83,7 +83,7 @@ class EpisodeRunner:
                 cpu_actions = copy.deepcopy(actions).to("cpu").numpy()
                 reward, terminated, env_info = self.env.step(cpu_actions[0])
                 if isinstance(reward, (list, tuple)):
-                    assert (reward[1:] == reward[:-1]), "reward has to be cooperative!"
+                    #assert (reward[1:] == reward[:-1]), "reward has to be cooperative!"
                     reward = reward[0]
                 episode_return += reward
             else:

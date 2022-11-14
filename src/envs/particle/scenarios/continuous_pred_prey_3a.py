@@ -22,7 +22,7 @@ class Scenario(BaseScenario):
         #     users.append([a,b])
         # world.user=users
         # np.savetxt('users_location.txt', users)
-        world.user = np.loadtxt('users_location.txt')
+        world.user = np.loadtxt('/home/ykzhao/code/ykworkspace/facmac/users_location.txt')
         # set any world properties first
         world.dim_c = 2
         num_good_agents = 0
