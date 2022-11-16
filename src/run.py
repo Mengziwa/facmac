@@ -179,24 +179,44 @@ def run_sequential(args, logger):
             actions_vshape = 1 if not args.actions_dtype == np.float32 else \
                                            max([i.spaces[0].shape[0] + i.spaces[1].shape[0] for i in args.action_spaces])
         # Default/Base scheme
-        scheme = {
+        if args.use_graph:
+            scheme = {
             "state": {"vshape": env_info["state_shape"]},
             "obs": {"vshape": env_info["obs_shape"], "group": "agents"},
             "actions": {"vshape": (actions_vshape,), "group": "agents", "dtype": action_dtype},
             "avail_actions": {"vshape": (env_info["n_actions"],), "group": "agents", "dtype": th.int},
             "reward": {"vshape": (1,)},
             "terminated": {"vshape": (1,), "dtype": th.uint8},
-        }
-        groups = {
-            "agents": args.n_agents
-        }
-
-        if not args.actions_dtype == np.float32:
-            preprocess = {
-                "actions": ("actions_onehot", [OneHot(out_dim=args.n_actions)])
             }
+            groups = {
+            "agents": args.n_agents
+            }
+
+            if not args.actions_dtype == np.float32:
+                preprocess = {
+                    "actions": ("actions_onehot", [OneHot(out_dim=args.n_actions)])
+                }
+            else:
+                preprocess = {}
         else:
-            preprocess = {}
+            scheme = {
+            "state": {"vshape": env_info["state_shape"]},
+            "obs": {"vshape": env_info["obs_shape"], "group": "agents"},
+            "actions": {"vshape": (actions_vshape,), "group": "agents", "dtype": action_dtype},
+            "avail_actions": {"vshape": (env_info["n_actions"],), "group": "agents", "dtype": th.int},
+            "reward": {"vshape": (1,)},
+            "terminated": {"vshape": (1,), "dtype": th.uint8},
+            }
+            groups = {
+            "agents": args.n_agents
+            }
+
+            if not args.actions_dtype == np.float32:
+                preprocess = {
+                    "actions": ("actions_onehot", [OneHot(out_dim=args.n_actions)])
+                }
+            else:
+                preprocess = {}
 
     buffer = ReplayBuffer(scheme, groups, args.buffer_size, env_info["episode_limit"] + 1 if args.runner_scope == "episodic" else 2,
                           preprocess=preprocess,
