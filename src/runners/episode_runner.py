@@ -42,6 +42,9 @@ class EpisodeRunner:
     def get_env_info(self):
         return self.env.get_env_info()
 
+    def get_env_graph_info(self):
+        return self.env.get_env_graph_info()
+
     def save_replay(self):
         self.env.save_replay()
 
@@ -54,6 +57,7 @@ class EpisodeRunner:
         self.t = 0
 
     def run(self, test_mode=False, **kwargs):
+        '''训练主函数'''
         self.reset()
 
         terminated = False
@@ -62,11 +66,18 @@ class EpisodeRunner:
 
         while not terminated:
 
-            pre_transition_data = {
-                "state": [self.env.get_state()],
-                "avail_actions": [self.env.get_avail_actions()],
-                "obs": [self.env.get_obs()]
-            }
+            if self.args.use_graph:
+                pre_transition_data = {
+                    "adj": [self.env.get_state()],
+                    "avail_actions": [self.env.get_avail_actions()],
+                    "feature": [self.env.get_obs()]
+                }
+            else:
+                pre_transition_data = {
+                    "state": [self.env.get_state()],
+                    "avail_actions": [self.env.get_avail_actions()],
+                    "obs": [self.env.get_obs()]
+                }
 
             self.batch.update(pre_transition_data, ts=self.t)
             if getattr(self.args, "action_selector", "epsilon_greedy") == "gumbel":
@@ -100,11 +111,19 @@ class EpisodeRunner:
 
             self.t += 1
 
-        last_data = {
-            "state": [self.env.get_state()],
-            "avail_actions": [self.env.get_avail_actions()],
-            "obs": [self.env.get_obs()]
-        }
+        if self.args.use_graph:
+            last_data = {
+                "adj": [self.env.get_state()],
+                "avail_actions": [self.env.get_avail_actions()],
+                "feature": [self.env.get_obs()]
+            }
+        else:
+            last_data = {
+                "adj": [self.env.get_state()],
+                "avail_actions": [self.env.get_avail_actions()],
+                "feature": [self.env.get_obs()]
+            }
+
         self.batch.update(last_data, ts=self.t)
 
         # Select actions in the last stored state
@@ -142,6 +161,7 @@ class EpisodeRunner:
         return self.batch
 
     def _log(self, returns, stats, prefix):
+        '''log记录'''
         self.logger.log_stat(prefix + "return_mean", np.mean(returns), self.t_env)
         self.logger.log_stat(prefix + "return_std", np.std(returns), self.t_env)
         returns.clear()

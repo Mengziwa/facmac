@@ -84,7 +84,7 @@ class Particle(MultiAgentEnv):
         return reward_n, terminated, info_n
 
     def get_obs(self):
-        """ Returns all agent observations in a list """
+        """ Returns all agent observations in a list：所有agnet的observation """
         obs_n = []
         for i, _ in enumerate(self.world.policy_agents):
             obs = self.get_obs_agent(i)
@@ -92,7 +92,7 @@ class Particle(MultiAgentEnv):
         return obs_n
 
     def get_obs_agent(self, agent_id):
-        """ Returns observation for agent_id """
+        """ Returns observation for agent_id：每个agent的observation"""
         obs = self.env._get_obs(self.world.policy_agents[agent_id])
         if len(obs) < self.get_obs_size():
             obs = np.concatenate([obs, np.zeros((self.get_obs_size() - len(obs)))],
@@ -100,10 +100,11 @@ class Particle(MultiAgentEnv):
         return obs
 
     def get_obs_size(self):
-        """ Returns the shape of the observation """
+        """ Returns the shape of the observation： 最大的 observation_space"""
         return max([o.shape[0] for o in self.env.observation_space])
 
     def get_state(self, team=None):
+        """ state = 所有observation """
         state = np.concatenate(self.get_obs())
         return state
 
@@ -111,6 +112,27 @@ class Particle(MultiAgentEnv):
         """ Returns the shape of the state"""
         state_size = len(self.get_state())
         return state_size
+
+    def get_adj(self, team=None):
+        adj = []
+        for i, _ in enumerate(self.world.policy_agents):
+            obs = self.get_obs_agent(i)
+            adj.append(obs)
+        return adj
+
+    def get_adj_size(self):
+        """ Returns the shape of the adj H"""
+        adj_size = max([o.shape[0] for o in self.env.observation_space])
+        return adj_size
+
+    def get_feature(self, team=None):
+        feature = np.concatenate(self.get_obs())
+        return feature
+
+    def get_feature_size(self):
+        """ Returns the shape of the feature X"""
+        feature_size = len(self.get_feature())
+        return feature_size
 
     def get_avail_actions(self):
         return np.ones((self.n_agents, self.get_total_actions()))
@@ -162,6 +184,19 @@ class Particle(MultiAgentEnv):
 
         env_info = {"state_shape": self.get_state_size(),
                     "obs_shape": self.get_obs_size(),
+                    "n_actions": self.get_total_actions(),
+                    "n_agents": self.n_agents,
+                    "episode_limit": self.episode_limit,
+                    "action_spaces": action_spaces,
+                    "actions_dtype": np.float32,
+                    "normalise_actions": False}
+        return env_info
+
+    def get_env_graph_info(self):
+        action_spaces = self.env.action_space
+
+        env_info = {"adj_shape": self.get_state_size(),
+                    "feature_shape":  self.get_obs_size(),
                     "n_actions": self.get_total_actions(),
                     "n_agents": self.n_agents,
                     "episode_limit": self.episode_limit,

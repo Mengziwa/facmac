@@ -131,7 +131,11 @@ class CQMixMAC(BasicMAC):
         # Other MACs might want to e.g. delegate building inputs to each agent
         bs = batch.batch_size
         inputs = []
-        inputs.append(batch["obs"][:, t])  # b1av
+        if self.args.use_graph:
+            inputs.append(batch["feature"][:, t])  # b1av
+        else:
+            inputs.append(batch["obs"][:, t])  # b1av
+
 
         if self.args.obs_last_action:
             if t == 0:
@@ -146,7 +150,10 @@ class CQMixMAC(BasicMAC):
         return inputs
 
     def _get_input_shape(self, scheme):
-        input_shape = scheme["obs"]["vshape"]
+        if self.args.use_graph:
+            input_shape = scheme["feature"]["vshape"]
+        else:
+            input_shape = scheme["obs"]["vshape"]
         if self.args.obs_last_action:
             if getattr(self.args, "discretize_actions", False):
                 input_shape += scheme["actions_onehot"]["vshape"][0]

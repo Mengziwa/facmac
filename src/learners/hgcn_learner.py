@@ -169,7 +169,10 @@ class HGCNLearner:
 
         if self.args.recurrent_critic:
             # The individual Q conditions on the global action-observation history and individual action
-            inputs.append(batch["obs"][:, t].repeat(1, self.args.n_agents, 1).view(bs, self.args.n_agents, -1))
+            if self.args.use_graph:
+                inputs.append(batch["feature"][:, t].repeat(1, self.args.n_agents, 1).view(bs, self.args.n_agents, -1))
+            else:
+                inputs.append(batch["obs"][:, t].repeat(1, self.args.n_agents, 1).view(bs, self.args.n_agents, -1))
             if self.args.obs_last_action:
                 if t == 0:
                     inputs.append(th.zeros_like(batch["actions"][:, t].repeat(1, self.args.n_agents, 1).
@@ -178,7 +181,10 @@ class HGCNLearner:
                     inputs.append(batch["actions"][:, t - 1].repeat(1, self.args.n_agents, 1).
                                   view(bs, self.args.n_agents, -1))
         else:
-            inputs.append(batch["obs"][:, t])
+            if self.args.use_graph:
+                inputs.append(batch["feature"][:, t])
+            else:
+                inputs.append(batch["obs"][:, t])
 
         inputs = th.cat([x.reshape(bs * self.n_agents, -1) for x in inputs], dim=1)
         return inputs

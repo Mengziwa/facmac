@@ -32,7 +32,10 @@ class FACMACCritic(nn.Module):
         return q, hidden_state
 
     def _get_input_shape(self, scheme):
-        input_shape = scheme["obs"]["vshape"]
+        if self.args.use_graph:
+            input_shape = scheme["feature"]["vshape"]
+        else:
+            input_shape = scheme["obs"]["vshape"]
         return input_shape
 
 
@@ -65,5 +68,8 @@ class FACMACDiscreteCritic(nn.Module):
         return q, hidden_state
 
     def _get_input_shape(self, scheme):
-        input_shape = scheme["obs"]["vshape"]
+        if self.args.use_graph:
+            input_shape = scheme["feature"]["vshape"]
+        else:
+            input_shape = scheme["obs"]["vshape"]
         return input_shape

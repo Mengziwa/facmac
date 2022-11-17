@@ -112,14 +112,24 @@ def run_sequential(args, logger):
             "actions": ("actions_onehot", [OneHot(out_dim=args.n_actions)])
         }
     else:
-        env_info = runner.get_env_info()
-        args.n_agents = env_info["n_agents"]
-        args.n_actions = env_info["n_actions"]
-        args.state_shape = env_info["state_shape"]
-        args.obs_shape = env_info["obs_shape"]
-        args.action_spaces = env_info["action_spaces"]
-        args.actions_dtype = env_info["actions_dtype"]
-        args.normalise_actions = env_info.get("normalise_actions", False) # if true, action vectors need to sum to one
+        if args.use_graph:
+            env_info = runner.get_env_graph_info()
+            args.n_agents = env_info["n_agents"]
+            args.n_actions = env_info["n_actions"]
+            args.adj_shape = env_info["adj_shape"]
+            args.feature_shape = env_info["feature_shape"]
+            args.action_spaces = env_info["action_spaces"]
+            args.actions_dtype = env_info["actions_dtype"]
+            args.normalise_actions = env_info.get("normalise_actions", False) # if true, action vectors need to sum to one
+        else:
+            env_info = runner.get_env_info()
+            args.n_agents = env_info["n_agents"]
+            args.n_actions = env_info["n_actions"]
+            args.state_shape = env_info["state_shape"]
+            args.obs_shape = env_info["obs_shape"]
+            args.action_spaces = env_info["action_spaces"]
+            args.actions_dtype = env_info["actions_dtype"]
+            args.normalise_actions = env_info.get("normalise_actions", False) # if true, action vectors need to sum to one
 
         ttype = th.FloatTensor if not args.use_cuda else th.cuda.FloatTensor
         mult_coef_tensor = ttype(args.n_agents, args.n_actions)
@@ -179,10 +189,11 @@ def run_sequential(args, logger):
             actions_vshape = 1 if not args.actions_dtype == np.float32 else \
                                            max([i.spaces[0].shape[0] + i.spaces[1].shape[0] for i in args.action_spaces])
         # Default/Base scheme
+        # 构造图数据
         if args.use_graph:
             scheme = {
-            "state": {"vshape": env_info["state_shape"]},
-            "obs": {"vshape": env_info["obs_shape"], "group": "agents"},
+            "adj": {"vshape": env_info["adj_shape"]},
+            "feature": {"vshape": env_info["feature_shape"], "group": "agents"},
             "actions": {"vshape": (actions_vshape,), "group": "agents", "dtype": action_dtype},
             "avail_actions": {"vshape": (env_info["n_actions"],), "group": "agents", "dtype": th.int},
             "reward": {"vshape": (1,)},
