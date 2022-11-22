@@ -113,18 +113,26 @@ class Particle(MultiAgentEnv):
         state_size = len(self.get_state())
         return state_size
 
+    def get_adj_agent(self, agent_id):
+        """ Returns adjacent matrix for agent_id：每个agent的adj"""
+        obs = self.env._get_obs(self.world.policy_agents[agent_id])
+        if len(obs) < self.get_obs_size():
+            obs = np.concatenate([obs, np.zeros((self.get_obs_size() - len(obs)))],
+                                 axis=0)  # pad all obs to same length
+        return obs
+
+# todo: 生成邻接矩阵矩阵 A
     def get_adj(self, team=None):
-        adj = []
-        for i, _ in enumerate(self.world.policy_agents):
-            obs = self.get_obs_agent(i)
-            adj.append(obs)
+        """ adjacent matrix = 超图关联矩阵"""
+        adj = np.concatenate(self.get_obs())
         return adj
 
     def get_adj_size(self):
         """ Returns the shape of the adj H"""
-        adj_size = max([o.shape[0] for o in self.env.observation_space])
+        adj_size = len(self.get_adj())
         return adj_size
 
+# todo: 生成特征矩阵 X
     def get_feature(self, team=None):
         feature = np.concatenate(self.get_obs())
         return feature

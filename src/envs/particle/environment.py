@@ -131,6 +131,7 @@ class MultiAgentEnv(gym.Env):
             return {}
         return self.info_callback(agent, self.world)
 
+    # todo 怎么调用场景里的observation函数？
     # get observation for a particular agent
     def _get_obs(self, agent):
         if self.observation_callback is None:

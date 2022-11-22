@@ -1,6 +1,7 @@
 # From https://github.com/openai/multiagent-particle-envs
 import numpy as np
 
+
 # physical/external base state of all entites
 class EntityState(object):
     def __init__(self):
@@ -9,12 +10,18 @@ class EntityState(object):
         # physical velocity
         self.p_vel = None
 
+
 # state of agents (including communication and internal/mental state)
 class AgentState(EntityState):
     def __init__(self):
         super(AgentState, self).__init__()
         # communication utterance
         self.c = None
+        # 簇外干扰
+        self.inter = []
+        # 簇内干扰
+        self.intra = []
+
 
 # action of the agent
 class Action(object):
@@ -23,6 +30,7 @@ class Action(object):
         self.u = None
         # communication action
         self.c = None
+
 
 # from https://github.com/shariqiqbal2810/multiagent-particle-envs/blob/master/multiagent/core.py
 class Wall(object):
@@ -40,6 +48,7 @@ class Wall(object):
         self.hard = hard
         # color of wall
         self.color = np.array([0.0, 0.0, 0.0])
+
 
 # properties and state of physical world entity
 class Entity(object):
@@ -68,10 +77,12 @@ class Entity(object):
     def mass(self):
         return self.initial_mass
 
+
 # properties of landmark entities
 class Landmark(Entity):
-     def __init__(self):
+    def __init__(self):
         super(Landmark, self).__init__()
+
 
 # properties of agent entities
 class Agent(Entity):
@@ -95,6 +106,7 @@ class Agent(Entity):
         self.action = Action()
         # script behavior to execute
         self.action_callback = None
+
 
 # multi-agent world
 class World(object):
@@ -157,30 +169,30 @@ class World(object):
     # gather agent action forces
     def apply_action_force(self, p_force):
         # set applied forces
-        for i,agent in enumerate(self.agents):
+        for i, agent in enumerate(self.agents):
             if agent.movable:
                 noise = np.random.randn(*agent.action.u.shape) * agent.u_noise if agent.u_noise else 0.0
-                p_force[i] = agent.action.u + noise                
+                p_force[i] = agent.action.u + noise
         return p_force
 
     # gather physical forces acting on entities
     def apply_environment_force(self, p_force):
         # simple (but inefficient) collision response
-        for a,entity_a in enumerate(self.entities):
-            for b,entity_b in enumerate(self.entities):
-                if(b <= a): continue
+        for a, entity_a in enumerate(self.entities):
+            for b, entity_b in enumerate(self.entities):
+                if (b <= a): continue
                 [f_a, f_b] = self.get_collision_force(entity_a, entity_b)
-                if(f_a is not None):
-                    if(p_force[a] is None): p_force[a] = 0.0
-                    p_force[a] = f_a + p_force[a] 
-                if(f_b is not None):
-                    if(p_force[b] is None): p_force[b] = 0.0
-                    p_force[b] = f_b + p_force[b]        
+                if (f_a is not None):
+                    if (p_force[a] is None): p_force[a] = 0.0
+                    p_force[a] = f_a + p_force[a]
+                if (f_b is not None):
+                    if (p_force[b] is None): p_force[b] = 0.0
+                    p_force[b] = f_b + p_force[b]
         return p_force
 
     # integrate physical state
     def integrate_state(self, p_force):
-        for i,entity in enumerate(self.entities):
+        for i, entity in enumerate(self.entities):
             if not entity.movable: continue
             entity.state.p_vel = entity.state.p_vel * (1 - self.damping)
             if (p_force[i] is not None):
@@ -189,7 +201,8 @@ class World(object):
                 speed = np.sqrt(np.square(entity.state.p_vel[0]) + np.square(entity.state.p_vel[1]))
                 if speed > entity.max_speed:
                     entity.state.p_vel = entity.state.p_vel / np.sqrt(np.square(entity.state.p_vel[0]) +
-                                                                  np.square(entity.state.p_vel[1])) * entity.max_speed
+                                                                      np.square(
+                                                                          entity.state.p_vel[1])) * entity.max_speed
             entity.state.p_pos += entity.state.p_vel * self.dt
 
     def update_agent_state(self, agent):
@@ -198,14 +211,15 @@ class World(object):
             agent.state.c = np.zeros(self.dim_c)
         else:
             noise = np.random.randn(*agent.action.c.shape) * agent.c_noise if agent.c_noise else 0.0
-            agent.state.c = agent.action.c + noise      
+            agent.state.c = agent.action.c + noise
 
-    # get collision forces for any contact between two entities
+            # get collision forces for any contact between two entities
+
     def get_collision_force(self, entity_a, entity_b):
         if (not entity_a.collide) or (not entity_b.collide):
-            return [None, None] # not a collider
+            return [None, None]  # not a collider
         if (entity_a is entity_b):
-            return [None, None] # don't collide against itself
+            return [None, None]  # don't collide against itself
         # compute actual distance between entities
         delta_pos = entity_a.state.p_pos - entity_b.state.p_pos
         dist = np.sqrt(np.sum(np.square(delta_pos)))
@@ -213,14 +227,11 @@ class World(object):
         dist_min = entity_a.size + entity_b.size
         # softmax penetration
         k = self.contact_margin
-        penetration = np.logaddexp(0, -(dist - dist_min)/k)*k
+        penetration = np.logaddexp(0, -(dist - dist_min) / k) * k
         force = self.contact_force * delta_pos / dist * penetration
         force_a = +force if entity_a.movable else None
         force_b = -force if entity_b.movable else None
         return [force_a, force_b]
-
-
-
 
     # all below from https://github.com/shariqiqbal2810/multiagent-particle-envs/blob/master/multiagent/core.py
     def calculate_distances(self):
