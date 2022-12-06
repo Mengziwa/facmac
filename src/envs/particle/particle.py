@@ -24,27 +24,29 @@ class Particle(MultiAgentEnv):
             self.world = self.scenario.make_world(self.args)
         self.n_agents = len(self.world.policy_agents)
         self.steps = 0
-        self.truncate_episodes = getattr(self.args, "truncate_episodes", True) #by default
+        self.truncate_episodes = getattr(self.args, "truncate_episodes", True)  # by default
         self.total_steps = 0
 
         if self.args.benchmark:
             self.env = OpenAIMultiAgentEnv(self.world,
-                                            self.scenario.reset_world,
-                                            self.scenario.reward,
-                                            self.scenario.observation,
-                                            self.scenario.benchmark_data)
+                                           self.scenario.reset_world,
+                                           self.scenario.reward,
+                                           self.scenario.observation,
+                                           self.scenario.benchmark_data)
         else:
             if not self.args.partial_obs:
                 self.env = OpenAIMultiAgentEnv(self.world,
-                                                self.scenario.reset_world,
-                                                self.scenario.reward,
-                                                self.scenario.observation)
+                                               self.scenario.reset_world,
+                                               self.scenario.reward,
+                                               self.scenario.observation)
             else:
                 self.env = OpenAIMultiAgentEnv(self.world,
                                                self.scenario.reset_world,
                                                self.scenario.reward,
                                                self.scenario.observation,
-                                               self.scenario.full_observation)
+                                               self.scenario.full_observation,
+                                               self.scenario.adj,
+                                               self.scenario.feature)
 
         self.glob_args = kwargs.get("args")
         pass
@@ -68,7 +70,7 @@ class Particle(MultiAgentEnv):
         for agent in self.world.agents:
             min_dists.append(float("inf"))
             for landmark in self.world.landmarks:
-                dist = sqrt(sum((apos-lpos)**2 for apos, lpos in zip(agent.state.p_pos, landmark.state.p_pos)))
+                dist = sqrt(sum((apos - lpos) ** 2 for apos, lpos in zip(agent.state.p_pos, landmark.state.p_pos)))
                 if dist < min_dists[-1]:
                     min_dists[-1] = dist
 
@@ -84,7 +86,7 @@ class Particle(MultiAgentEnv):
         return reward_n, terminated, info_n
 
     def get_obs(self):
-        """ Returns all agent observations in a list：所有agnet的observation """
+        """ Returns all agent observations in a list：所有agent的observation """
         obs_n = []
         for i, _ in enumerate(self.world.policy_agents):
             obs = self.get_obs_agent(i)
@@ -115,32 +117,45 @@ class Particle(MultiAgentEnv):
 
     def get_adj_agent(self, agent_id):
         """ Returns adjacent matrix for agent_id：每个agent的adj"""
-        obs = self.env._get_obs(self.world.policy_agents[agent_id])
-        if len(obs) < self.get_obs_size():
-            obs = np.concatenate([obs, np.zeros((self.get_obs_size() - len(obs)))],
-                                 axis=0)  # pad all obs to same length
-        return obs
+        adj = self.env._get_adj(self.world.policy_agents[agent_id])
+        if len(adj) < self.get_adj_size():
+            adj = np.concatenate([adj, np.zeros((self.get_adj_size() - len(adj)))],
+                                 axis=0)  # pad all adj to same length
+        return adj
 
-# todo: 生成邻接矩阵矩阵 A
+    # todo: 生成邻接矩阵矩阵 A
     def get_adj(self, team=None):
         """ adjacent matrix = 超图关联矩阵"""
-        adj = np.concatenate(self.get_obs())
-        return adj
+        adj_n = []
+        for i, _ in enumerate(self.world.policy_agents):
+            adj = self.get_adj_agent(i)
+            adj_n.append(adj)
+        #adj = np.concatenate(adj_n)
+        return adj_n
 
     def get_adj_size(self):
         """ Returns the shape of the adj H"""
-        adj_size = len(self.get_adj())
-        return adj_size
+        return max([a.shape[0] for a in self.env.adj_space])
 
-# todo: 生成特征矩阵 X
-    def get_feature(self, team=None):
-        feature = np.concatenate(self.get_obs())
+    # todo: 生成特征矩阵 X
+    def get_feature_agent(self, agent_id):
+        """ Returns feature matrix for agent_id：每个agent的feature"""
+        feature = self.env._get_feature(self.world.policy_agents[agent_id])
+        if len(feature) < self.get_feature_size():
+            feature = np.concatenate([feature, np.zeros((self.get_adj_size() - len(feature)))],
+                                     axis=0)  # pad all adj to same length
         return feature
+
+    def get_feature(self, team=None):
+        feature_n = []
+        for i, _ in enumerate(self.world.policy_agents):
+            feature = self.get_feature_agent(i)
+            feature_n.append(feature)
+        return feature_n
 
     def get_feature_size(self):
         """ Returns the shape of the feature X"""
-        feature_size = len(self.get_feature())
-        return feature_size
+        return max([f.shape[0] for f in self.env.feature_space])
 
     def get_avail_actions(self):
         return np.ones((self.n_agents, self.get_total_actions()))
@@ -203,8 +218,8 @@ class Particle(MultiAgentEnv):
     def get_env_graph_info(self):
         action_spaces = self.env.action_space
 
-        env_info = {"adj_shape": self.get_state_size(),
-                    "feature_shape":  self.get_obs_size(),
+        env_info = {"adj_shape": self.get_adj_size(),
+                    "feature_shape": self.get_feature_size(),
                     "n_actions": self.get_total_actions(),
                     "n_agents": self.n_agents,
                     "episode_limit": self.episode_limit,

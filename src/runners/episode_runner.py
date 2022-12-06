@@ -78,7 +78,7 @@ class EpisodeRunner:
                     "avail_actions": [self.env.get_avail_actions()],
                     "obs": [self.env.get_obs()]
                 }
-
+            # todo: 数据维度
             self.batch.update(pre_transition_data, ts=self.t)
             if getattr(self.args, "action_selector", "epsilon_greedy") == "gumbel":
                 actions = self.mac.select_actions(self.batch, t_ep=self.t, t_env=self.t_env,
@@ -113,15 +113,15 @@ class EpisodeRunner:
 
         if self.args.use_graph:
             last_data = {
-                "adj": [self.env.get_state()],
+                "adj": [self.env.get_adj()],
                 "avail_actions": [self.env.get_avail_actions()],
-                "feature": [self.env.get_obs()]
+                "feature": [self.env.get_feature()]
             }
         else:
             last_data = {
-                "adj": [self.env.get_state()],
+                "state": [self.env.get_state()],
                 "avail_actions": [self.env.get_avail_actions()],
-                "feature": [self.env.get_obs()]
+                "obs": [self.env.get_obs()]
             }
 
         self.batch.update(last_data, ts=self.t)

@@ -192,7 +192,7 @@ def run_sequential(args, logger):
         # 构造图数据
         if args.use_graph:
             scheme = {
-            "adj": {"vshape": env_info["adj_shape"]},
+            "adj": {"vshape": env_info["adj_shape"], "group": "agents"},
             "feature": {"vshape": env_info["feature_shape"], "group": "agents"},
             "actions": {"vshape": (actions_vshape,), "group": "agents", "dtype": action_dtype},
             "avail_actions": {"vshape": (env_info["n_actions"],), "group": "agents", "dtype": th.int},

@@ -24,19 +24,19 @@ class FACMACLearner:
         self.critic_params = list(self.critic.parameters())
 
         self.mixer = None
-        if args.mixer is not None and self.args.n_agents > 1:  # if just 1 agent do not mix anything
-            if args.mixer == "vdn":
-                self.mixer = VDNMixer()
-            elif args.mixer == "qmix":
-                self.mixer = QMixer(args)
-            elif args.mixer == "vdn-s":
-                self.mixer = VDNState(args)
-            elif args.mixer == "qmix-nonmonotonic":
-                self.mixer = QMixerNonmonotonic(args)
-            else:
-                raise ValueError("Mixer {} not recognised.".format(args.mixer))
-            self.critic_params += list(self.mixer.parameters())
-            self.target_mixer = copy.deepcopy(self.mixer)
+        #if args.mixer is not None and self.args.n_agents > 1:  # if just 1 agent do not mix anything
+        #    if args.mixer == "vdn":
+        #        self.mixer = VDNMixer()
+        #    elif args.mixer == "qmix":
+        #        self.mixer = QMixer(args)
+        #    elif args.mixer == "vdn-s":
+        #        self.mixer = VDNState(args)
+        #    elif args.mixer == "qmix-nonmonotonic":
+        #        self.mixer = QMixerNonmonotonic(args)
+        #    else:
+        #        raise ValueError("Mixer {} not recognised.".format(args.mixer))
+        #    self.critic_params += list(self.mixer.parameters())
+        #    self.target_mixer = copy.deepcopy(self.mixer)
 
         if getattr(self.args, "optimizer", "rmsprop") == "rmsprop":
             self.agent_optimiser = RMSprop(params=self.agent_params, lr=args.lr, alpha=args.optim_alpha, eps=args.optim_eps)

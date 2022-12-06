@@ -29,6 +29,7 @@ class EpisodeBatch:
             self.data.transition_data = {}
             self.data.episode_data = {}
             self._setup_data(self.scheme, self.groups, batch_size, max_seq_length, self.preprocess)
+            # print(self.data.transition_data["adj"].size())
 
     def _setup_data(self, scheme, groups, batch_size, max_seq_length, preprocess):
         if preprocess is not None:
@@ -75,7 +76,8 @@ class EpisodeBatch:
             if episode_const:
                 self.data.episode_data[field_key] = th.zeros((batch_size, *shape), dtype=dtype, device=self.device)
             else:
-                self.data.transition_data[field_key] = th.zeros((batch_size, max_seq_length, *shape), dtype=dtype, device=self.device)
+                self.data.transition_data[field_key] = th.zeros((batch_size, max_seq_length, *shape), dtype=dtype,
+                                                                device=self.device)
 
     def extend(self, scheme, groups=None):
         self._setup_data(scheme, self.groups if groups is None else groups, self.batch_size, self.max_seq_length)
@@ -93,6 +95,8 @@ class EpisodeBatch:
         for k, v in data.items():
             if k in self.data.transition_data:
                 target = self.data.transition_data
+                #print(k)
+                #print(target[k].size())  # torch.Size([1, 26, 6]) -> torch.Size([1, 26, 6, 6])
                 if mark_filled:
                     target["filled"][slices] = 1
                     mark_filled = False
@@ -102,13 +106,14 @@ class EpisodeBatch:
                 target = self.data.episode_data
                 _slices = slices[0]
             else:
-                raise KeyError("{} not found in transition or episode data".format(k))
+                raise KeyError("{} not found in transition or episode data".f11ormat(k))
 
             dtype = self.scheme[k].get("dtype", th.float32)
-            v = th.tensor(v, dtype=dtype, device=self.device)
+            v = th.tensor(v, dtype=dtype, device=self.device)  # torch.Size([1, 6, 6])
+            #print(v.size())
             try:
                 self._check_safe_view(v, target[k][_slices])
-            except Exception as e:
+            except Exception as e:  # Unsafe reshape of torch.Size([1，6，6]) to torch.Size([1，1，72])
                 a = 5
                 pass
             target[k][_slices] = v.view_as(target[k][_slices])
@@ -156,7 +161,8 @@ class EpisodeBatch:
             new_scheme = {key: self.scheme[key] for key in item}
             new_groups = {self.scheme[key]["group"]: self.groups[self.scheme[key]["group"]]
                           for key in item if "group" in self.scheme[key]}
-            ret = EpisodeBatch(new_scheme, new_groups, self.batch_size, self.max_seq_length, data=new_data, device=self.device)
+            ret = EpisodeBatch(new_scheme, new_groups, self.batch_size, self.max_seq_length, data=new_data,
+                               device=self.device)
             return ret.to(self.device)
         else:
             item = self._parse_slices(item)
@@ -177,7 +183,7 @@ class EpisodeBatch:
             return len(indexing_item)
         elif isinstance(indexing_item, slice):
             _range = indexing_item.indices(max_size)
-            return 1 + (_range[1] - _range[0] - 1)//_range[2]
+            return 1 + (_range[1] - _range[0] - 1) // _range[2]
 
     def _new_data_sn(self):
         new_data = SN()
@@ -189,9 +195,9 @@ class EpisodeBatch:
         parsed = []
         # Only batch slice given, add full time slice
         if (isinstance(items, slice)  # slice a:b
-            or isinstance(items, int)  # int i
-            or (isinstance(items, (list, np.ndarray, th.LongTensor, th.cuda.LongTensor)))  # [a,b,c]
-            ):
+                or isinstance(items, int)  # int i
+                or (isinstance(items, (list, np.ndarray, th.LongTensor, th.cuda.LongTensor)))  # [a,b,c]
+        ):
             items = (items, slice(None))
 
         # Need the time indexing to be contiguous
@@ -199,10 +205,10 @@ class EpisodeBatch:
             raise IndexError("Indexing across Time must be contiguous")
 
         for item in items:
-            #TODO: stronger checks to ensure only supported options get through
+            # TODO: stronger checks to ensure only supported options get through
             if isinstance(item, int):
                 # Convert single indices to slices
-                parsed.append(slice(item, item+1))
+                parsed.append(slice(item, item + 1))
             else:
                 # Leave slices and lists as is
                 parsed.append(item)
@@ -223,7 +229,7 @@ class EpisodeBatch:
         return self
 
     def clone(self):
-        self.data.transition_data = {k:v.clone() for k, v in self.data.transition_data.items()}
+        self.data.transition_data = {k: v.clone() for k, v in self.data.transition_data.items()}
         self.data.episode_data = {k: v.clone() for k, v in self.data.episode_data.items()}
         return self
 
@@ -233,14 +239,14 @@ class EpisodeBatch:
 
         # transition data
         cols = list(self.data.transition_data.keys())
-        cln_cols = [] # clean for agent dimension
+        cln_cols = []  # clean for agent dimension
         cln_data = []
         for col in cols:
             if self.data.transition_data[col].dim() == 4:
                 n_agents = self.data.transition_data[col].shape[-2]
                 for aid in range(n_agents):
                     cln_cols.append(col + "__agent{}".format(aid))
-                    cln_data.append(self.data.transition_data[col][:,:,aid,:].cpu().numpy())
+                    cln_data.append(self.data.transition_data[col][:, :, aid, :].cpu().numpy())
             else:
                 cln_cols.append(col)
                 cln_data.append(self.data.transition_data[col].cpu().numpy())
@@ -250,7 +256,9 @@ class EpisodeBatch:
         transition_pds = []
         for b in range(batch_size):
             pds = pd.DataFrame(columns=cln_cols,
-                              data=[[cln_data[j][b, t, :][0] if len(cln_data[j][b, t, :]) == 1 else cln_data[j][b, t, :] for j, _ in enumerate(cln_cols)] for t in range(seq_len)])
+                               data=[
+                                   [cln_data[j][b, t, :][0] if len(cln_data[j][b, t, :]) == 1 else cln_data[j][b, t, :]
+                                    for j, _ in enumerate(cln_cols)] for t in range(seq_len)])
             transition_pds.append(pds)
 
         # episode data
@@ -263,12 +271,13 @@ class EpisodeBatch:
                 episode_pds.append(pd)
         return transition_pds, episode_pds
 
+
 # import blosc
 class CompressibleBatchTensor():
 
     def __init__(self, batch_size, shape, dtype, device, out_device, chunk_size=10, algo="zstd"):
-        assert batch_size % chunk_size==0, "batch_size must be multiple of chunk size!"
-        self._storage = {_i:None for _i in range(batch_size // chunk_size)}
+        assert batch_size % chunk_size == 0, "batch_size must be multiple of chunk size!"
+        self._storage = {_i: None for _i in range(batch_size // chunk_size)}
         self.chunk_size = chunk_size
         self.algo = algo
         self.batch_size = batch_size
@@ -307,8 +316,8 @@ class CompressibleBatchTensor():
             if self._storage[chunk_id] is None:
                 for _, _a in chunk_dict[chunk_id]:
                     tmp_list.append((th.zeros(self.shape,
-                                             dtype=self.dtype,
-                                             device=self.out_device), _a))
+                                              dtype=self.dtype,
+                                              device=self.out_device), _a))
             else:
                 # decompress and read out
                 tmp = self._decompress(self._storage[chunk_id], shape=(self.chunk_size, *self.shape))
@@ -319,7 +328,6 @@ class CompressibleBatchTensor():
         tmp_list.sort(key=lambda x: x[1])
         rtn_item = th.stack([a[0] for a in tmp_list], 0)
         return rtn_item.to(device=self.out_device)
-
 
     def _decompress(self, compressed_tensor, shape):
         decompressed_string = blosc.decompress(compressed_tensor, self.np_dtype)
@@ -356,8 +364,8 @@ class CompressibleBatchTensor():
         for chunk_id in chunk_dict.keys():
             if self._storage[chunk_id] is None:
                 tmp_tensor = th.zeros((self.chunk_size, *self.shape),
-                                dtype=self.dtype,
-                                device=self.out_device)
+                                      dtype=self.dtype,
+                                      device=self.out_device)
             else:
 
                 # decompress and read out
@@ -377,22 +385,26 @@ class CompressibleBatchTensor():
 
         # calculate compression ratio
         from itertools import product
-        chunk_compression_ratios = [len(_x) / (np.asscalar(np.prod(np.array(self.shape))) * self.chunk_size * self.np_dtype.itemsize) for
-                                    k, _x in self._storage.items() if _x is not None]
+        chunk_compression_ratios = [
+            len(_x) / (np.asscalar(np.prod(np.array(self.shape))) * self.chunk_size * self.np_dtype.itemsize) for
+            k, _x in self._storage.items() if _x is not None]
         stats["compression_ratio"] = np.asscalar(np.array(chunk_compression_ratios).mean())
 
-        stats["predicted_full_size_compressed"] = stats["compression_ratio"] * self.chunk_size * len(self._storage.keys()) * np.asscalar(np.prod(np.array(self.shape))*self.np_dtype.itemsize)
-        stats["predicted_full_size_uncompressed"] = self.chunk_size * len(self._storage.keys()) * np.asscalar(np.prod(np.array(self.shape))*self.np_dtype.itemsize)
+        stats["predicted_full_size_compressed"] = stats["compression_ratio"] * self.chunk_size * len(
+            self._storage.keys()) * np.asscalar(np.prod(np.array(self.shape)) * self.np_dtype.itemsize)
+        stats["predicted_full_size_uncompressed"] = self.chunk_size * len(self._storage.keys()) * np.asscalar(
+            np.prod(np.array(self.shape)) * self.np_dtype.itemsize)
         return stats
 
     pass
 
+
 class CompressibleEpisodeBatch(EpisodeBatch):
 
     def __init__(self, scheme, groups, batch_size,
-                  max_seq_length, data, preprocess,
-                  device,
-                  out_device,
+                 max_seq_length, data, preprocess,
+                 device,
+                 out_device,
                  chunk_size=10,
                  algo="zstd"):
         self.out_device = out_device
@@ -460,19 +472,24 @@ class CompressibleEpisodeBatch(EpisodeBatch):
         for k, v in self.data.transition_data.items():
             stats_list_trans[k] = v.get_compression_stats()
 
-        stats["fill_level"] = np.asscalar(np.mean([ v["fill_level"] for _, v in stats_list_trans.items() ]))
+        stats["fill_level"] = np.asscalar(np.mean([v["fill_level"] for _, v in stats_list_trans.items()]))
         # stats["compression_ratio"] = np.asscalar(np.mean([v["compression_ratio"] for _, v in stats_list_trans.items()]))
-        stats["compression_ratio"] = np.asscalar(np.sum([v["predicted_full_size_compressed"] for _, v in stats_list_trans.items()]))\
-                                     / np.asscalar(np.sum([v["predicted_full_size_uncompressed"] for _, v in stats_list_trans.items()]))
-        stats["predicted_full_size_compressed"] = np.asscalar(np.sum([v["predicted_full_size_compressed"] for _, v in stats_list_trans.items()]))
+        stats["compression_ratio"] = np.asscalar(
+            np.sum([v["predicted_full_size_compressed"] for _, v in stats_list_trans.items()])) \
+                                     / np.asscalar(
+            np.sum([v["predicted_full_size_uncompressed"] for _, v in stats_list_trans.items()]))
+        stats["predicted_full_size_compressed"] = np.asscalar(
+            np.sum([v["predicted_full_size_compressed"] for _, v in stats_list_trans.items()]))
         stats["predicted_full_size_uncompressed"] = np.asscalar(
             np.sum([v["predicted_full_size_uncompressed"] for _, v in stats_list_trans.items()]))
         return stats
 
+
 class ReplayBuffer(EpisodeBatch):
 
     def __init__(self, scheme, groups, buffer_size, max_seq_length, preprocess=None, device="cpu", out_device=None):
-        super(ReplayBuffer, self).__init__(scheme, groups, buffer_size, max_seq_length, preprocess=preprocess, device=device, out_device=out_device)
+        super(ReplayBuffer, self).__init__(scheme, groups, buffer_size, max_seq_length, preprocess=preprocess,
+                                           device=device, out_device=out_device)
         self.buffer_size = buffer_size  # same as self.batch_size but more explicit
         self.buffer_index = 0
         self.episodes_in_buffer = 0
@@ -518,8 +535,8 @@ class ReplayBuffer(EpisodeBatch):
 
 class CompressibleReplayBuffer(CompressibleEpisodeBatch, ReplayBuffer):
 
-    def __init__(self, scheme, groups, buffer_size, max_seq_length, preprocess=None, device="cpu", out_device="cpu", compress=True, chunk_size=10, algo="zstd"):
-
+    def __init__(self, scheme, groups, buffer_size, max_seq_length, preprocess=None, device="cpu", out_device="cpu",
+                 compress=True, chunk_size=10, algo="zstd"):
         CompressibleEpisodeBatch.__init__(self, scheme=scheme, groups=groups, batch_size=buffer_size,
                                           max_seq_length=max_seq_length, data=None, preprocess=preprocess,
                                           device=device,

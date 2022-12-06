@@ -13,10 +13,10 @@ class Scenario(BaseScenario):
         world.dim_c = 2
         # num_good_agents = 0
         # num_adversaries = 3
-        num_agents = 6  # agent总数
+        world.num_agents = 6  # agent总数
         k = 2  # 与k个agent建立超边
         # add agents
-        world.agents = [Agent() for i in range(num_agents)]  # 所有agent集合
+        world.agents = [Agent() for i in range(world.num_agents)]  # 所有agent集合
         for i, agent in enumerate(world.agents):
             agent.name = 'agent %d' % i
             agent.collide = True
@@ -163,7 +163,7 @@ class Scenario(BaseScenario):
             other_vel.append(other.state.p_vel)
         return np.concatenate([agent.state.p_pos] + other_pos)
 
-    def adj_feature(self, agent, world):
+    def adj(self, agent, world):
         '''输出adjacent matrix和feature matrix
         adjacent= N × 1
         feature= K × 1
@@ -174,30 +174,57 @@ class Scenario(BaseScenario):
         all_other_interference = []
         for other in world.agents:
             if other is agent:
-                all_other_interference.append(np.array([0., 0.]))
+                all_other_interference.append(np.array([0.]))
             else:
                 dist = np.sqrt(np.sum(np.square(other.state.p_pos - agent.state.p_pos)))
                 if agent.view_radius >= 0 and dist <= agent.view_radius:  # 观测范围约束
                     # comm.append(other.state.c)
-                    all_other_interference.append(other.state.p_pos - agent.state.p_pos)  # todo 根据干扰关系得到超图关联矩阵
+                    all_other_interference.append(other.state.p_pos[0] - agent.state.p_pos[0])  # todo 根据干扰关系得到超图关联矩阵
                     # if not other.adversary:
                 else:
-                    all_other_interference.append(np.array([0., 0.]))
+                    all_other_interference.append(np.array([0.]))
         # print(other_interference)
         # 选出K个interference最大的other的索引
-        a = all_other_interference
+        a = np.array(all_other_interference)
         a.argsort()
         k = 3  # 前k个
         b = a.argsort()[-k:]
         for index in b:
             adj[index] = 1
-            view_other = world.agent[index]
-            view_other_interference = view_other.state.p_pos - agent.state.p_pos  # todo 计算other对当前agent的干扰（簇外干扰）
-            other_interference.append(view_other_interference)
+            # view_other = world.agents[index]
+            # view_other_interference = view_other.state.p_pos - agent.state.p_pos  # todo 计算other对当前agent的干扰（簇外干扰）
+            # other_interference.append(view_other_interference)
         # todo 计算当前agent的簇内干扰
-        feature = np.concatenate(other_interference + other_intra)
+        # feature = np.concatenate(other_interference + other_intra)
         # max_data = max(other_interference)
         # max_index=other_interference.index(max_data)
         # adj[max_index]=1
         # return np.concatenate([agent.state.p_pos] + other_pos)
-        return adj, feature
+        return adj
+
+    def feature(self, agent, world):
+        '''输出adjacent matrix和feature matrix
+        adjacent= N × 1
+        feature= K × 1
+        '''
+        other_interference = []
+        adj = self.adj(agent, world)
+        #print(adj)
+        for index in range(len(adj)):
+            if adj[index] == 0:
+                continue
+            else:
+                view_other = world.agents[index]
+                view_other_interference = view_other.state.p_pos - agent.state.p_pos  # todo 计算other对当前agent的干扰（簇外干扰）
+                other_interference.append(view_other_interference)
+        # todo 计算当前agent的簇内干扰
+        other_intra = []
+        # todo feature维度不对
+        feature = np.concatenate(other_interference + other_intra)
+        #print(adj)
+        #print(feature)
+        # max_data = max(other_interference)
+        # max_index=other_interference.index(max_data)
+        # adj[max_index]=1
+        # return np.concatenate([agent.state.p_pos] + other_pos)
+        return feature
