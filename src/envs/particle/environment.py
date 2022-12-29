@@ -139,7 +139,6 @@ class MultiAgentEnv(gym.Env):
             return {}
         return self.info_callback(agent, self.world)
 
-    # todo 怎么调用场景里的observation函数？
     # get observation for a particular agent
     def _get_obs(self, agent):
         if self.observation_callback is None:
@@ -173,7 +172,7 @@ class MultiAgentEnv(gym.Env):
     # set env action for a particular agent
     def _set_action(self, action, agent, action_space, time=None):
         agent.action.u = np.zeros(self.world.dim_p)
-        agent.action.c = np.zeros(self.world.dim_c)
+        # agent.action.c = np.zeros(self.world.dim_c)
         # process action
         if isinstance(action_space, MultiDiscrete):
             act = []
@@ -191,33 +190,34 @@ class MultiAgentEnv(gym.Env):
             if self.discrete_action_input:
                 agent.action.u = np.zeros(self.world.dim_p)
                 # process discrete action
-                if action[0] == 1: agent.action.u[0] = -1.0
-                if action[0] == 2: agent.action.u[0] = +1.0
-                if action[0] == 3: agent.action.u[1] = -1.0
-                if action[0] == 4: agent.action.u[1] = +1.0
+                if action[0] == 1: agent.action.u[0] = -1.0  # left
+                if action[0] == 2: agent.action.u[0] = +1.0  # right
+                if action[0] == 3: agent.action.u[1] = -1.0  # down
+                if action[0] == 4: agent.action.u[1] = +1.0  # up
             else:
-                if self.force_discrete_action:
-                    d = np.argmax(action[0])
-                    action[0][:] = 0.0
-                    action[0][d] = 1.0
-                if self.discrete_action_space:
-                    agent.action.u[0] += action[0][1] - action[0][2]
-                    agent.action.u[1] += action[0][3] - action[0][4]
+                # if self.force_discrete_action:
+                #    d = np.argmax(action[0])
+                #    action[0][:] = 0.0
+                #    action[0][d] = 1.0
+                if self.discrete_action_space:  # 独热编码，悬停、右、左、上、下
+                    agent.action.u[0] += action[0][1] - action[0][2]  # x
+                    agent.action.u[1] += action[0][3] - action[0][4]  # y
+                    agent.action.u[2] += action[0][5] - action[0][6]  # z
                 else:
                     agent.action.u = action[0]
-            sensitivity = 5.0
+            sensitivity = 100.0  # 默认是5
             if agent.accel is not None:
                 sensitivity = agent.accel
             agent.action.u *= sensitivity
-            action = action[1:]
-        if not agent.silent:
-            # communication action
-            if self.discrete_action_input:
-                agent.action.c = np.zeros(self.world.dim_c)
-                agent.action.c[action[0]] = 1.0
-            else:
-                agent.action.c = action[0]
-            action = action[1:]
+            action = action[1:]  # 去掉首位
+        # if not agent.silent:
+        # communication action
+        #    if self.discrete_action_input:
+        #        agent.action.c = np.zeros(self.world.dim_c)
+        #        agent.action.c[action[0]] = 1.0
+        #    else:
+        #        agent.action.c = action[0]
+        #    action = action[1:]
         # make sure we used all elements of action
         assert len(action) == 0
 

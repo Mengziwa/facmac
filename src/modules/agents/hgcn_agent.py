@@ -18,7 +18,7 @@ class HGCNAgent(nn.Module):
         # make hidden states on same device as model
         return self.hgc1.weight.new(1, self.args.rnn_hidden_dim).zero_()
 
-    # todo inputs -> x, G (G通过H计算)
+    # inputs -> x, G (G通过H计算)
     def forward(self, x, G, actions=None):
         #print(x.size())
         #print(G.size())

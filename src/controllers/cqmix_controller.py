@@ -134,6 +134,7 @@ class CQMixMAC(BasicMAC):
     def forward(self, ep_batch, t, actions=None, hidden_states=None, select_actions=False, test_mode=False):
         agent_inputs = self._build_inputs(ep_batch, t)
         if self.args.use_graph:
+            # todo G应该由H生成
             G = self._build_G(ep_batch, t)
             ret = self.agent(agent_inputs, G, actions=actions)
             if select_actions:

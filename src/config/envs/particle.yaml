@@ -8,3 +8,5 @@ env_args:
   agent_view_radius: 1.5
   score_function: "min"
   partial_obs: True
+  noise: 9.999999999999962e-14
+  rho: 9.999999999999982e-9 # reference channel gain

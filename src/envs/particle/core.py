@@ -7,6 +7,7 @@ class EntityState(object):
     def __init__(self):
         # physical position
         self.p_pos = None
+        self.power = []
         # physical velocity
         self.p_vel = None
 
@@ -16,7 +17,7 @@ class AgentState(EntityState):
     def __init__(self):
         super(AgentState, self).__init__()
         # communication utterance
-        self.c = None
+        # self.c = None
         # 簇外干扰
         self.inter = []
         # 簇内干扰
@@ -28,8 +29,12 @@ class Action(object):
     def __init__(self):
         # physical action
         self.u = None
+        # power control
+        self.power = []
+        # RB allocation
+        self.rb = []
         # communication action
-        self.c = None
+        # self.c = None
 
 
 # from https://github.com/shariqiqbal2810/multiagent-particle-envs/blob/master/multiagent/core.py
@@ -119,6 +124,16 @@ class World(object):
         self.dim_c = 0
         # position dimensionality
         self.dim_p = 2
+        # number of UAVs
+        self.num_uav = 5
+        # position of users
+        self.user = np.loadtxt('/home/ykzhao/code/ykworkspace/facmac/users_location.txt')  # todo 改成三维
+        # number of users
+        self.num_user = len(self.user)
+        # number of RB
+        self.num_rb = 5
+        # number of power
+        self.num_power = 5  # todo 功率连续？
         # color dimensionality
         self.dim_color = 3
         # simulation timestep
@@ -136,7 +151,7 @@ class World(object):
     # return all entities in the world
     @property
     def entities(self):
-        return self.agents + self.landmarks
+        return self.agents #+ self.landmarks
 
     # return all agents controllable by external policies
     @property
@@ -155,16 +170,18 @@ class World(object):
             # agent.action = agent.action_callback(agent, self)
             agent.action.u = agent.action_callback(agent, self)  # NOTE: need this in the apply_action_force() function
         # gather forces applied to entities
-        p_force = [None] * len(self.entities)
+        #p_force = [None] * len(self.entities)
         # apply agent physical controls
-        p_force = self.apply_action_force(p_force)
+        #p_force = self.apply_action_force(p_force)
         # apply environment forces
-        p_force = self.apply_environment_force(p_force)
+        # p_force = self.apply_environment_force(p_force)
         # integrate physical state
-        self.integrate_state(p_force)
+        # todo 问题：选完动作 没有更新到state上
+        #self.integrate_state(p_force)
         # update agent state
-        for agent in self.agents:
-            self.update_agent_state(agent)
+        self.update_state(self.agents)
+        #for agent in self.agents:
+        #    self.update_agent_state(agent)
 
     # gather agent action forces
     def apply_action_force(self, p_force):
@@ -172,7 +189,7 @@ class World(object):
         for i, agent in enumerate(self.agents):
             if agent.movable:
                 noise = np.random.randn(*agent.action.u.shape) * agent.u_noise if agent.u_noise else 0.0
-                p_force[i] = agent.action.u + noise
+                p_force[i] = agent.action.u #+ noise
         return p_force
 
     # gather physical forces acting on entities
@@ -192,29 +209,81 @@ class World(object):
 
     # integrate physical state
     def integrate_state(self, p_force):
+        sensitivity = 100.0
         for i, entity in enumerate(self.entities):
-            if not entity.movable: continue
-            entity.state.p_vel = entity.state.p_vel * (1 - self.damping)
-            if (p_force[i] is not None):
-                entity.state.p_vel += (p_force[i] / entity.mass) * self.dt
-            if entity.max_speed is not None:
-                speed = np.sqrt(np.square(entity.state.p_vel[0]) + np.square(entity.state.p_vel[1]))
-                if speed > entity.max_speed:
-                    entity.state.p_vel = entity.state.p_vel / np.sqrt(np.square(entity.state.p_vel[0]) +
-                                                                      np.square(
-                                                                          entity.state.p_vel[1])) * entity.max_speed
-            entity.state.p_pos += entity.state.p_vel * self.dt
+            if entity.movable:
+                noise = np.random.randn(*entity.action.u.shape) * entity.u_noise if entity.u_noise else 0.0
+                noise *= sensitivity
+                    # if agent.action.u[0] < 0:
+                    #     agent.state.p_pos[0] = max(agent.state.p_pos[0] + agent.action.u[0] + noise[0], 0)
+                    # else:
+                    #     agent.state.p_pos[0] = min(agent.state.p_pos[0] + agent.action.u[0] + noise[0], self.area_width)
+                    #
+                    # if agent.action.u[1] < 0:
+                    #     agent.state.p_pos[1] = max(agent.state.p_pos[1] + agent.action.u[1] + noise[1], 0)
+                    # else:
+                    #     agent.state.p_pos[1] = min(agent.state.p_pos[1] + agent.action.u[1] + noise[1], self.area_width)
 
-    def update_agent_state(self, agent):
-        # set communication state (directly for now)
-        if agent.silent:
-            agent.state.c = np.zeros(self.dim_c)
-        else:
-            noise = np.random.randn(*agent.action.c.shape) * agent.c_noise if agent.c_noise else 0.0
-            agent.state.c = agent.action.c + noise
+                old_pos = entity.state.p_pos
+                entity.state.p_pos = entity.state.p_pos + entity.action.u + noise
+                if entity.state.p_pos[0] < 0 or entity.state.p_pos[0] >= 5000:
+                    entity.state.p_pos = old_pos
+                if entity.state.p_pos[1] < 0 or entity.state.p_pos[1] >= 5000:
+                    entity.state.p_pos = old_pos
+                # todo 3D
+                #if entity.state.p_pos[2] < 100 or entity.state.p_pos[2] >= 300:
+                #    entity.state.p_pos = old_pos
+            #if not entity.movable: continue
+            #entity.state.p_vel = entity.state.p_vel * (1 - self.damping)
+            #if (p_force[i] is not None):
+            #    entity.state.p_vel += (p_force[i] / entity.mass) * self.dt
+            #if entity.max_speed is not None:
+            #    speed = np.sqrt(np.square(entity.state.p_vel[0]) + np.square(entity.state.p_vel[1]))
+            #    if speed > entity.max_speed:
+            #        entity.state.p_vel = entity.state.p_vel / np.sqrt(np.square(entity.state.p_vel[0]) +
+            #                                                          np.square(
+            #                                                              entity.state.p_vel[1])) * entity.max_speed
+            #entity.state.p_pos += entity.state.p_vel * self.dt
+            #print(p_force[i])
+            #print(entity.state.p_pos)
 
-            # get collision forces for any contact between two entities
+    def update_state(self, agents):
+        p_force = [None] * len(self.agents)
+        sensitivity = 100.0
+        for i, agent in enumerate(self.agents):
+            if agent.movable:
+                noise = np.random.randn(*agent.action.u.shape) * agent.u_noise if agent.u_noise else 0.0
+                noise *= sensitivity
+                # if agent.action.u[0] < 0:
+                #     agent.state.p_pos[0] = max(agent.state.p_pos[0] + agent.action.u[0] + noise[0], 0)
+                # else:
+                #     agent.state.p_pos[0] = min(agent.state.p_pos[0] + agent.action.u[0] + noise[0], self.area_width)
+                #
+                # if agent.action.u[1] < 0:
+                #     agent.state.p_pos[1] = max(agent.state.p_pos[1] + agent.action.u[1] + noise[1], 0)
+                # else:
+                #     agent.state.p_pos[1] = min(agent.state.p_pos[1] + agent.action.u[1] + noise[1], self.area_width)
 
+                old_pos = agent.state.p_pos
+                agent.state.p_pos = agent.state.p_pos + agent.action.u + noise
+                if agent.state.p_pos[0] < 0 or agent.state.p_pos[0] >= 1000: #area_width
+                    agent.state.p_pos = old_pos
+                if agent.state.p_pos[1] < 0 or agent.state.p_pos[1] >= 1000: #area_width
+                    agent.state.p_pos = old_pos
+                #todo 3D
+                #if agent.state.p_pos[2] < self.uav_height_min or agent.state.p_pos[2] >= self.uav_height_max:
+                #    agent.state.p_pos = old_pos
+
+        for agent in self.agents:
+            # set communication state (directly for now)
+            if agent.silent:
+                agent.state.c = np.zeros(self.dim_c)
+            else:
+                noise = np.random.randn(*agent.action.c.shape) * agent.c_noise if agent.c_noise else 0.0
+                agent.state.c = agent.action.c + noise
+
+
+    # get collision forces for any contact between two entities
     def get_collision_force(self, entity_a, entity_b):
         if (not entity_a.collide) or (not entity_b.collide):
             return [None, None]  # not a collider
