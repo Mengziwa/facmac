@@ -170,6 +170,7 @@ class MultiAgentEnv(gym.Env):
         return self.reward_callback(agent, self.world)
 
     # set env action for a particular agent
+    # todo 设置动作
     def _set_action(self, action, agent, action_space, time=None):
         agent.action.u = np.zeros(self.world.dim_p)
         # agent.action.c = np.zeros(self.world.dim_c)
@@ -209,6 +210,7 @@ class MultiAgentEnv(gym.Env):
             if agent.accel is not None:
                 sensitivity = agent.accel
             agent.action.u *= sensitivity
+            #print(agent.action.u)
             action = action[1:]  # 去掉首位
         # if not agent.silent:
         # communication action

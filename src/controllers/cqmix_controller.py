@@ -35,7 +35,7 @@ class CQMixMAC(BasicMAC):
         #                                  select_actions=True)["actions"] # just to make sure detach
         #    chosen_actions = chosen_actions.view(ep_batch[bs].batch_size, self.n_agents, self.args.n_actions).detach()
         #   pass
-        elif self.args.agent == "hgcn":
+        elif self.args.agent == "hgcn": # todo
             chosen_actions = self.forward(ep_batch[bs],
                                           t_ep,
                                           hidden_states=self.hidden_states[bs],
@@ -134,7 +134,7 @@ class CQMixMAC(BasicMAC):
     def forward(self, ep_batch, t, actions=None, hidden_states=None, select_actions=False, test_mode=False):
         agent_inputs = self._build_inputs(ep_batch, t)
         if self.args.use_graph:
-            # todo G应该由H生成
+            # NOTE: G由H生成
             G = self._build_G(ep_batch, t)
             ret = self.agent(agent_inputs, G, actions=actions)
             if select_actions:

@@ -5,8 +5,7 @@ env_args:
   episode_limit: 25
   scenario_name: "continuous_pred_prey_3a"
   state_mode: "all"
-  agent_view_radius: 1.5
+  agent_view_radius: 0.5
   score_function: "min"
   partial_obs: True
-  noise: 9.999999999999962e-14
-  rho: 9.999999999999982e-9 # reference channel gain
+

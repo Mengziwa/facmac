@@ -6,36 +6,37 @@ import numpy as np
 import math as math
 
 
-def get_dis(uav_loc, user_loc):
+def get_dis(uav_loc, uav_h, user_loc):
     """
     Calculate the distance between the current UAV and all users
     :param uav_loc: 2 X 1; UAV水平位置
-    :param user_loc: 2 X 1; 用户位置矩阵
+    :param user_loc: 2 X 1; 用户位置
     :return: distance
     """
-    dis = np.linalg.norm(uav_loc - user_loc)
-    return dis
+    d = math.sqrt((uav_loc[0] - user_loc[0]) ** 2 + (uav_loc[1] - user_loc[1]) ** 2 + uav_h ** 2)
+
+    return d
 
 
-def get_channel_gain(uav_loc, user_loc):
+def get_channel_gain(uav_loc, uav_h, user_loc):
     '''
     Calculate the channel gain between the current UAV and all users
     :return: 1 X N channel gain matrix
     '''
-    dis = get_dis(uav_loc, user_loc)
+    dis = get_dis(uav_loc, uav_h, user_loc)
     # 参考增益
     rho = 9.999999999999982e-9
     h = rho * (dis ** (-2))
     return h
 
 
-def get_desired_signal(uav_loc, user_loc, power_user):
+def get_desired_signal(uav_loc, uav_h, user_loc, power_user):
     '''
     Calculate the desired signal from the current UAV to all users via given RB k
     :param power_user: 1 X N; 当前无人机对所有用户的发射功率
     :return: 1 X N desired signal matrix
     '''
-    channel_gain = get_channel_gain(uav_loc, user_loc)
+    channel_gain = get_channel_gain(uav_loc, uav_h, user_loc)
     x = power_user * channel_gain
     return x
 
@@ -65,8 +66,7 @@ def get_channel_gain_2(uav_loc, user_loc):
     :return: 1 X N channel gain matrix
     '''
     dis = get_dis_2(uav_loc, user_loc)
-    # todo 参考增益
-    rho = 1
+    rho = 9.999999999999982e-9
     channel_gain = []
     for i in range(len(user_loc)):
         h = rho * (dis[i] ** (-2))
@@ -88,7 +88,7 @@ def get_desired_signal_2(uav_loc, user_loc, power_user):
     return desired_signal
 
 
-def get_intra_interference(uav_loc, user_loc, power_user):
+def get_intra_interference(uav_loc, uav_h, user_loc, power_user):
     '''
     Calculate the intra-interference from the current UAV to its users via given RB k
     小区内干扰: 在小区i内使用同样RB的NOMA通信链路具有SIC无法消除的较高干扰;
@@ -97,7 +97,7 @@ def get_intra_interference(uav_loc, user_loc, power_user):
     :return: 1 X N intra_interference matrix
     '''
     intra_interference = []
-    channel_gain = get_channel_gain(uav_loc, user_loc)
+    channel_gain = get_channel_gain(uav_loc, uav_h, user_loc)
     for j in range(len(user_loc)):
         for j_ in range(len(user_loc)):
             if channel_gain[j_] > channel_gain[j]:
@@ -109,7 +109,7 @@ def get_intra_interference(uav_loc, user_loc, power_user):
     return intra_interference
 
 
-def get_inter_interference(other_loc, user_loc, other_power_RB):
+def get_inter_interference(other_loc, uav_h, user_loc, other_power_RB):
     '''
     Calculate the inter-interference from all other UAV to all users via given RB k
     小区外干扰:在第k个RB上发送信号的其他空中基站引起
@@ -119,33 +119,33 @@ def get_inter_interference(other_loc, user_loc, other_power_RB):
     inter_interference = np.zeros([len(other_loc), len(user_loc)])
     for i_ in range(len(other_loc)):
         for j in range(len(user_loc)):
-            channel_gain = get_channel_gain(other_loc[i_], user_loc)
+            channel_gain = get_channel_gain(other_loc[i_], uav_h, user_loc)
             inter_interference[i_][j] = other_power_RB[i_] * channel_gain[j]
     return inter_interference
 
 
-def get_sinr(uav_loc, power_user, other_loc, user_loc, other_power_RB):
+def get_sinr(uav_loc, uav_h, power_user, other_loc, user_loc, other_power_RB):
     '''
     Calculate the sinr from UAV i to all users via given RB k
     小区外干扰:在第k个RB上发送信号的其他空中基站引起
     :param power_RB: 1 X N; 其他空中基站在RB k上的发射功率。
     :return: 1 X N inter_interference matrix
     '''
-    inter_interference = get_inter_interference(other_loc, user_loc, other_power_RB)
+    inter_interference = get_inter_interference(other_loc, uav_h, user_loc, other_power_RB)
     sum_inter_interference = sum(sum(inter_interference))
-    intra_interference = get_intra_interference(uav_loc, user_loc, power_user)
+    intra_interference = get_intra_interference(uav_loc, uav_h, user_loc, power_user)
     sum_intra_interference = sum(intra_interference)
-    desired_signal = get_desired_signal(uav_loc, user_loc, power_user)
+    desired_signal = get_desired_signal(uav_loc, uav_h, user_loc, power_user)
     # sinr for uav i to user j via RB k
     sinr = []
-    noise = 1  # todo 噪声args
+    noise = 2e-7  # 噪声args
     for j in range(len(user_loc)):
         gamma = desired_signal[j] / (noise + sum_inter_interference + sum_intra_interference)
         sinr.append(gamma)
     return sinr
 
 
-def get_rate(uav_loc, power_user, other_loc, user_loc, other_power_RB):
+def get_rate(uav_loc, uav_h, power_user, other_loc, user_loc, other_power_RB):
     '''
     Calculate the inter-interference from all other UAV to all users via given RB k
     小区外干扰:在第k个RB上发送信号的其他空中基站引起
@@ -153,8 +153,9 @@ def get_rate(uav_loc, power_user, other_loc, user_loc, other_power_RB):
     :return: 1 X N inter_interference matrix
     '''
     rate = []
-    sinr = get_sinr(uav_loc, power_user, other_loc, user_loc, other_power_RB)
+    bandwidth = 15000
+    sinr = get_sinr(uav_loc, uav_h, power_user, other_loc, user_loc, other_power_RB)
     for j in range(len(user_loc)):
-        r = math.log(1 + sinr[j])
+        r = bandwidth*math.log(1 + sinr[j])
         rate.append(r)
     return rate

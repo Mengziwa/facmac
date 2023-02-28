@@ -100,17 +100,23 @@ def _generate_G_from_H(H, variable_weight=False):
     :return: G
     """
     H = np.array(H)  # incidence matrix H
+    #print(H)
     n_edge = H.shape[1]  # 超边数量
     # the weight of the hyperedge
     W = np.ones(n_edge)  # 超边权重 为1
+    # print(W)
     # the degree of the node
+    # print(H * W)
     DV = np.sum(H * W, axis=1)  # 点的度的矩阵
+    #print(DV)  # 这里不能有0
     # the degree of the hyperedge
     DE = np.sum(H, axis=0)  # 边的度的矩阵
-
+    #print(DE)  # 这里不能有0
     invDE = np.mat(np.diag(np.power(DE, -1)))
+    #print(invDE)
     DV2 = np.mat(np.diag(np.power(DV, -0.5)))
-    W = np.mat(np.diag(W))   # weight矩阵
+    #print(DV2)
+    W = np.mat(np.diag(W))  # weight矩阵
     H = np.mat(H)  # H矩阵
     HT = H.T  # H的转置矩阵
 
@@ -120,6 +126,7 @@ def _generate_G_from_H(H, variable_weight=False):
         return DV2_H, W, invDE_HT_DV2
     else:
         G = DV2 * H * W * invDE * HT * DV2  # 超图卷积
+        # print(G)
         return G
 
 

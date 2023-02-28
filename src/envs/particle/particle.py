@@ -123,7 +123,7 @@ class Particle(MultiAgentEnv):
                                  axis=0)  # pad all adj to same length
         return adj
 
-    # todo: 生成邻接矩阵矩阵 A
+    # 生成邻接矩阵矩阵 A
     def get_adj(self, team=None):
         """ adjacent matrix = 超图关联矩阵"""
         adj_n = []
@@ -137,15 +137,15 @@ class Particle(MultiAgentEnv):
         """ Returns the shape of the adj H"""
         return max([a.shape[0] for a in self.env.adj_space])
 
-    # todo: 生成特征矩阵 X
     def get_feature_agent(self, agent_id):
         """ Returns feature matrix for agent_id：每个agent的feature"""
         feature = self.env._get_feature(self.world.policy_agents[agent_id])
         if len(feature) < self.get_feature_size():
-            feature = np.concatenate([feature, np.zeros((self.get_adj_size() - len(feature)))],
-                                     axis=0)  # pad all adj to same length
+            feature = np.concatenate([feature, np.zeros((self.get_feature_size() - len(feature)))],
+                                     axis=0)  # pad all feature to same length
         return feature
 
+    # 生成特征矩阵 X
     def get_feature(self, team=None):
         feature_n = []
         for i, _ in enumerate(self.world.policy_agents):
