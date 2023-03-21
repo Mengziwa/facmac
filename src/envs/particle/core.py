@@ -7,7 +7,7 @@ class EntityState(object):
     def __init__(self):
         # physical position
         self.p_pos = None
-        #self.power = []
+        # self.power = []
         # physical velocity
         self.p_vel = None
 
@@ -197,7 +197,7 @@ class World(object):
 
     # integrate physical state
     def integrate_state(self, p_force):
-        for i,entity in enumerate(self.entities):
+        for i, entity in enumerate(self.entities):
             if not entity.movable: continue
             entity.state.p_vel = entity.state.p_vel * (1 - self.damping)
             if (p_force[i] is not None):
@@ -206,7 +206,8 @@ class World(object):
                 speed = np.sqrt(np.square(entity.state.p_vel[0]) + np.square(entity.state.p_vel[1]))
                 if speed > entity.max_speed:
                     entity.state.p_vel = entity.state.p_vel / np.sqrt(np.square(entity.state.p_vel[0]) +
-                                                                  np.square(entity.state.p_vel[1])) * entity.max_speed
+                                                                      np.square(
+                                                                          entity.state.p_vel[1])) * entity.max_speed
             entity.state.p_pos += entity.state.p_vel * self.dt
 
     def update_agent_state(self, agent):
@@ -218,7 +219,7 @@ class World(object):
             agent.state.c = agent.action.c + noise
 
     # integrate physical state
-    #def integrate_state(self, p_force):
+    # def integrate_state(self, p_force):
     #    sensitivity = 100.0
     #    for i, entity in enumerate(self.entities):
     #        if entity.movable:
@@ -230,12 +231,11 @@ class World(object):
     #                entity.state.p_pos = old_pos
     #            if entity.state.p_pos[1] < 0 or entity.state.p_pos[1] >= 1000:
     #                entity.state.p_pos = old_pos
-                # todo 3D
-                # if entity.state.p_pos[2] < 100 or entity.state.p_pos[2] >= 300:
-                #    entity.state.p_pos = old_pos
+    # 3D
+    # if entity.state.p_pos[2] < 100 or entity.state.p_pos[2] >= 300:
+    #    entity.state.p_pos = old_pos
 
-
-    #def update_state(self, agents):
+    # def update_state(self, agents):
     #    p_force = [None] * len(self.agents)
     #    sensitivity = 1.0
     #    for i, agent in enumerate(self.agents):
@@ -248,12 +248,12 @@ class World(object):
     #                agent.state.p_pos = old_pos
     #            if agent.state.p_pos[1] < 0 or agent.state.p_pos[1] >= 1000:  # area_width
     #                agent.state.p_pos = old_pos
-                # todo 3D
-                # if agent.state.p_pos[2] < 100 or agent.state.p_pos[2] >= 200:
-                #    agent.state.p_pos = old_pos
+    # 3D
+    # if agent.state.p_pos[2] < 100 or agent.state.p_pos[2] >= 200:
+    #    agent.state.p_pos = old_pos
 
     #    for agent in self.agents:
-            # set communication state (directly for now)
+    # set communication state (directly for now)
     #        if agent.silent:
     #            agent.state.c = np.zeros(self.dim_c)
     #        else:

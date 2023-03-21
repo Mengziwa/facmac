@@ -15,15 +15,16 @@ class Scenario(BaseScenario):
     yita_l = 2.3  # 环境参数
     yita_n = 34  # 环境参数
     noise_power = 1e-13  # 噪声 -100 dBm
-    num_rb = 8
+
 
     # transmit_power = 100
 
     def make_world(self, args=None):
         world = World()
-        world.user = np.loadtxt('/home/ykzhao/code/ykworkspace/facmac/users_location.txt')
+        world.user = np.loadtxt('/home/ykzhao/code/ykworkspace/facmac/users_location_20.txt')
         # world.dim_c = 2
         world.num_uav = 4
+        world.num_rb = 5
         world.num_user = len(world.user)
         world.num_k = 1  # 与k个agent建立超边
         world.agents = [Agent() for i in range(world.num_uav)]  # 所有agent集合
@@ -43,10 +44,10 @@ class Scenario(BaseScenario):
             agent.view_radius = getattr(args, "agent_view_radius", -1)
             agent.dist_min = 0.001
 
-        world.rb = np.zeros([world.num_uav, world.num_user, self.num_rb])
+        world.rb = np.zeros([world.num_uav, world.num_user, world.num_rb])
         for j in range(world.num_user):
             m = np.random.randint(0, world.num_uav)  # 每个用户仅关联一个UAV
-            r = np.random.randint(0, self.num_rb)  # 每个用户仅由一个RB服务
+            r = np.random.randint(0, world.num_rb)  # 每个用户仅由一个RB服务
             world.rb[m][j][r] = 1
 
             # print("AGENT VIEW RADIUS set to: {}".format(agent.view_radius))
@@ -61,7 +62,7 @@ class Scenario(BaseScenario):
             # agent.state.p_pos = np.array([0.4,0.4],dtype="float64")
             agent.state.p_pos = np.random.uniform(0.5, 0.5001, world.dim_p)  # 随机生成agent的位置
             agent.state.p_vel = np.zeros(world.dim_p)
-            agent.state.power = np.ones([world.num_user, self.num_rb])  # 生成agent的功率分配矩阵：UAV对各用户在各RB上的功率分配
+            agent.state.power = np.ones([world.num_user, world.num_rb])  # 生成agent的功率分配矩阵：UAV对各用户在各RB上的功率分配
             # agent.state.rb = agent.rb
             # for j in range(world.num_user):
             #    r = np.random.randint(0, self.num_rb)  # 每个用户仅由一个RB服务
@@ -151,8 +152,8 @@ class Scenario(BaseScenario):
         # print(received_power)
 
         # 计算各UAV在RB k上的功率
-        power_rb = np.zeros([world.num_uav, self.num_rb])
-        for k in range(self.num_rb):
+        power_rb = np.zeros([world.num_uav, world.num_rb])
+        for k in range(world.num_rb):
             for i in range(world.num_uav):
                 tmp = 0
                 for j in range(world.num_user):
@@ -161,8 +162,8 @@ class Scenario(BaseScenario):
         # print(power_rb)
 
         # 计算簇外干扰：来自在第k个RB上发送信号的其他空中基站
-        inter_interference = np.zeros([world.num_uav, world.num_user, self.num_rb])
-        for k in range(self.num_rb):
+        inter_interference = np.zeros([world.num_uav, world.num_user, world.num_rb])
+        for k in range(world.num_rb):
             for j in range(world.num_user):
                 for i in range(world.num_uav):
                     tmp = 0
@@ -175,8 +176,8 @@ class Scenario(BaseScenario):
         # print(intra_interference)
 
         # 计算簇内干扰：为在小区i内使用同样RB的NOMA通信链路具有SIC无法消除的较高干扰
-        intra_interference = np.zeros([world.num_uav, world.num_user, self.num_rb])
-        for k in range(self.num_rb):
+        intra_interference = np.zeros([world.num_uav, world.num_user, world.num_rb])
+        for k in range(world.num_rb):
             for i in range(world.num_uav):
                 for j in range(world.num_user):
                     tmp = 0
@@ -186,8 +187,8 @@ class Scenario(BaseScenario):
                     intra_interference[i][j][k] = tmp
         # print(inter_interference)
 
-        rate = np.zeros([world.num_uav, world.num_user, self.num_rb])
-        for k in range(self.num_rb):
+        rate = np.zeros([world.num_uav, world.num_user, world.num_rb])
+        for k in range(world.num_rb):
             for i in range(world.num_uav):
                 for j in range(world.num_user):
                     # print(sigma[i][j][k] * power[i][j][k] * channel_gain[i][j])

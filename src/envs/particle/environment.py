@@ -39,7 +39,7 @@ class MultiAgentEnv(gym.Env):
         self.shared_reward = world.collaborative if hasattr(world, 'collaborative') else False
         self.time = 0
 
-        # configure spaces
+        # todo: configure spaces
         self.action_space = []
         self.observation_space = []
         self.adj_space = []
@@ -54,6 +54,9 @@ class MultiAgentEnv(gym.Env):
                                             dtype=np.float32)
             if agent.movable:
                 total_action_space.append(u_action_space)
+            # power allocation action space (连续)
+            p_action_space = spaces.Box(low=0.0, high=1.0, shape=(world.num_user*world.num_rb,), dtype=np.float32)
+            total_action_space.append(p_action_space)
             # communication action space
             if self.discrete_action_space:
                 c_action_space = spaces.Discrete(world.dim_c)
