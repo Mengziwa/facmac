@@ -10,10 +10,10 @@ class Scenario(BaseScenario):
         world.dim_c = 2
         num_good_agents = 3
         num_adversaries = 9
-        num_agents = num_adversaries + num_good_agents # deactivate "good" agents
+        world.num_agents = num_adversaries + num_good_agents # deactivate "good" agents
         num_landmarks = 6
         # add agents
-        world.agents = [Agent() for i in range(num_agents)]
+        world.agents = [Agent() for i in range(world.num_agents)]
         for i, agent in enumerate(world.agents):
             agent.name = 'agent %d' % i
             agent.collide = True
@@ -22,7 +22,7 @@ class Scenario(BaseScenario):
             agent.size = 0.075 if agent.adversary else 0.05
             agent.accel = 3.0 if agent.adversary else 4.0
             agent.max_speed = 1.0 if agent.adversary else 1.3
-            agent.action_callback = None if i < (num_agents-num_good_agents) else self.prey_policy
+            agent.action_callback = None if i < (world.num_agents-num_good_agents) else self.prey_policy
             agent.view_radius = getattr(args, "agent_view_radius", -1)
             print("AGENT VIEW RADIUS set to: {}".format(agent.view_radius))
         # add landmarks
@@ -225,4 +225,37 @@ class Scenario(BaseScenario):
             other_pos.append(other.state.p_pos - agent.state.p_pos)
             if not other.adversary:
                 other_vel.append(other.state.p_vel)
+        return np.concatenate([agent.state.p_vel] + [agent.state.p_pos] + entity_pos + other_pos + other_vel)
+
+    # todo adj
+    def adj(self, agent, world):
+        adj = np.ones(world.num_agents)
+        return adj
+
+    # todo feature
+    def feature(self, agent, world):
+        # get positions of all entities in this agent's reference frame
+        entity_pos = []
+        for entity in world.landmarks:
+            dist = np.sqrt(np.sum(np.square(entity.state.p_pos - agent.state.p_pos)))
+            if not entity.boundary and (agent.view_radius >= 0) and dist <= agent.view_radius:
+                entity_pos.append(entity.state.p_pos - agent.state.p_pos)
+            else:
+                entity_pos.append(np.array([0., 0.]))
+        # communication of all other agents
+        comm = []
+        other_pos = []
+        other_vel = []
+        for other in world.agents:
+            if other is agent: continue
+            dist = np.sqrt(np.sum(np.square(other.state.p_pos - agent.state.p_pos)))
+            if agent.view_radius >= 0 and dist <= agent.view_radius:
+                comm.append(other.state.c)
+                other_pos.append(other.state.p_pos - agent.state.p_pos)
+                if not other.adversary:
+                    other_vel.append(other.state.p_vel)
+            else:
+                other_pos.append(np.array([0., 0.]))
+                if not other.adversary:
+                    other_vel.append(np.array([0., 0.]))
         return np.concatenate([agent.state.p_vel] + [agent.state.p_pos] + entity_pos + other_pos + other_vel)

@@ -227,10 +227,12 @@ class Scenario(BaseScenario):
                 other_vel.append(other.state.p_vel)
         return np.concatenate([agent.state.p_vel] + [agent.state.p_pos] + entity_pos + other_pos + other_vel)
 
+    # todo adj
     def adj(self, agent, world):
         adj = np.ones(world.num_agents)
         return adj
 
+    # todo feature
     def feature(self, agent, world):
         # get positions of all entities in this agent's reference frame
         entity_pos = []
